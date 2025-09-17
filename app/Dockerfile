@@ -2,9 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependencias necesarias para Oracle Instant Client
+# Dependencias para Oracle Instant Client
 RUN apt-get update && \
-    apt-get install -y wget unzip libaio-dev libncurses6 && \
+    apt-get install -y wget unzip libaio1 libncurses6 && \
     rm -rf /var/lib/apt/lists/*
 
 # Descargar e instalar Oracle Instant Client 21.13
@@ -22,7 +22,7 @@ ENV ORACLE_HOME=/opt/oracle/instantclient_21_13
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código
+# Copiar código
 COPY . .
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
