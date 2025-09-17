@@ -3,12 +3,17 @@ import oracledb
 import os
 from dotenv import load_dotenv
 
-# Cargar variables desde .env
 load_dotenv()
 
 app = FastAPI()
 
-# Configuración conexión Oracle desde variables de entorno
+# Activar modo thick
+try:
+    oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_21_13")
+except Exception as e:
+    print("Oracle client init error:", e)
+
+# Configuración conexión Oracle
 host = os.getenv("ORACLE_HOST")
 port = os.getenv("ORACLE_PORT", "1521")
 sid = os.getenv("ORACLE_SID")
