@@ -6,11 +6,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y wget unzip libaio-dev && rm -rf /var/lib/apt/lists/*
 
 # Descargar e instalar Oracle Instant Client
-RUN wget https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linuxx64.zip -O instantclient.zip && \
+RUN wget https://download.oracle.com/otn_software/linux/instantclient/2113000/instantclient-basiclite-linux.x64-21.13.0.0.0dbru.zip -O instantclient.zip && \
     unzip instantclient.zip -d /opt/oracle && \
     rm instantclient.zip && \
-    echo /opt/oracle/instantclient* > /etc/ld.so.conf.d/oracle-instantclient.conf && \
+    echo /opt/oracle/instantclient_21_13 > /etc/ld.so.conf.d/oracle-instantclient.conf && \
     ldconfig
+
 
 # Variables de entorno para modo thick
 ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_23_5

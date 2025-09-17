@@ -1,25 +1,25 @@
-from fastapi import FastAPI, Request
-import oracledb
 import os
+import oracledb
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
+# Cargar variables del .env
 load_dotenv()
+
+# Inicializar cliente Oracle en modo thick
+# Asegúrate de que esta ruta coincida con tu Dockerfile
+oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_21_13")
 
 app = FastAPI()
 
-# Activar modo thick
-try:
-    oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_21_13")
-except Exception as e:
-    print("Oracle client init error:", e)
-
-# Configuración conexión Oracle
-host = os.getenv("ORACLE_HOST")
-port = os.getenv("ORACLE_PORT", "1521")
-sid = os.getenv("ORACLE_SID")
-dsn = f"{host}:{port}/{sid}"
-user = os.getenv("ORACLE_USER")
-password = os.getenv("ORACLE_PASSWORD")
+# Función para obtener conexión
+def get_connection():
+    return oracledb.connect(
+        user=os.getenv("ORACLE_USER"),
+        password=os.getenv("ORACLE_PASSWORD"),
+        dsn=f"{os.getenv('ORACLE_HOST')}:{os.getenv('ORACLE_PORT')}/{os.getenv('ORACLE_SID')}"
+    )
 
 @app.post("/query")
 async def run_query(request: Request):
@@ -28,18 +28,21 @@ async def run_query(request: Request):
         sql = body.get("query")
 
         if not sql:
-            return {"success": False, "error": "Falta parámetro 'query'"}
+            return JSONResponse({"error": "Falta el parámetro 'query'"}, status_code=400)
 
-        conn = oracledb.connect(user=user, password=password, dsn=dsn)
-        cur = conn.cursor()
-        cur.execute(sql)
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(sql)
 
-        columns = [col[0] for col in cur.description]
-        rows = [dict(zip(columns, row)) for row in cur]
+        # Convertir resultados a JSON
+        columns = [col[0] for col in cursor.description]
+        rows = cursor.fetchall()
+        results = [dict(zip(columns, row)) for row in rows]
 
-        cur.close()
+        cursor.close()
         conn.close()
 
-        return {"success": True, "data": rows}
+        return {"data": results}
+
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return JSONResponse({"error": str(e)}, status_code=500)
