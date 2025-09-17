@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Instalar dependencias necesarias para Oracle Instant Client
 RUN apt-get update && \
-    apt-get install -y wget unzip libaio-dev libncurses5 && \
+    apt-get install -y wget unzip libaio-dev libncurses6 && \
     rm -rf /var/lib/apt/lists/*
 
 # Descargar e instalar Oracle Instant Client 21.13
