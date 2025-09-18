@@ -1,6 +1,7 @@
 import os
 import csv
 import uuid
+import time
 import oracledb
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, FileResponse
@@ -26,6 +27,21 @@ def get_connection():
 CSV_DIR = "/tmp/csv_exports"
 os.makedirs(CSV_DIR, exist_ok=True)
 
+# Tiempo de expiración en segundos (6 horas)
+CSV_EXPIRATION = 6 * 60 * 60
+
+def cleanup_old_csvs():
+    now = time.time()
+    for filename in os.listdir(CSV_DIR):
+        filepath = os.path.join(CSV_DIR, filename)
+        if os.path.isfile(filepath):
+            age = now - os.path.getmtime(filepath)
+            if age > CSV_EXPIRATION:
+                try:
+                    os.remove(filepath)
+                except Exception as e:
+                    print(f"No se pudo borrar {filepath}: {e}")
+
 @app.post("/query")
 async def run_query(request: Request):
     try:
@@ -34,6 +50,9 @@ async def run_query(request: Request):
 
         if not sql:
             return JSONResponse({"error": "Falta el parámetro 'query'"}, status_code=400)
+
+        # Limpiar CSVs antiguos
+        cleanup_old_csvs()
 
         # Ejecutar consulta
         conn = get_connection()
