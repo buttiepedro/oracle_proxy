@@ -1,14 +1,15 @@
 import os
+import csv
+import uuid
 import oracledb
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from dotenv import load_dotenv
 
 # Cargar variables del .env
 load_dotenv()
 
 # Inicializar cliente Oracle en modo thick
-# Asegúrate de que esta ruta coincida con tu Dockerfile
 oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_21_13")
 
 app = FastAPI()
@@ -21,6 +22,10 @@ def get_connection():
         dsn=f"{os.getenv('ORACLE_HOST')}:{os.getenv('ORACLE_PORT')}/{os.getenv('ORACLE_SID')}"
     )
 
+# Carpeta temporal para guardar CSVs
+CSV_DIR = "/tmp/csv_exports"
+os.makedirs(CSV_DIR, exist_ok=True)
+
 @app.post("/query")
 async def run_query(request: Request):
     try:
@@ -30,19 +35,38 @@ async def run_query(request: Request):
         if not sql:
             return JSONResponse({"error": "Falta el parámetro 'query'"}, status_code=400)
 
+        # Ejecutar consulta
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(sql)
 
-        # Convertir resultados a JSON
         columns = [col[0] for col in cursor.description]
         rows = cursor.fetchall()
-        results = [dict(zip(columns, row)) for row in rows]
+
+        # Generar nombre de archivo único
+        filename = f"{uuid.uuid4().hex}.csv"
+        filepath = os.path.join(CSV_DIR, filename)
+
+        # Guardar CSV
+        with open(filepath, mode="w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(columns)
+            writer.writerows(rows)
 
         cursor.close()
         conn.close()
 
-        return {"data": results}
+        # Retornar link de descarga
+        download_url = f"/download/{filename}"
+        return {"download_url": download_url}
 
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/download/{filename}")
+def download_csv(filename: str):
+    filepath = os.path.join(CSV_DIR, filename)
+    if not os.path.isfile(filepath):
+        return JSONResponse({"error": "Archivo no encontrado"}, status_code=404)
+    return FileResponse(filepath, media_type="text/csv", filename=filename)
